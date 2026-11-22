@@ -1,0 +1,43 @@
+.wiki-sync-view {
+  padding: 12px 16px 24px;
+}
+
+.wiki-sync-view h3 {
+  margin-top: 0;
+}
+
+.wiki-sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.wiki-sync-summary {
+  margin: 8px 0 12px;
+}
+
+.wiki-sync-log {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.wiki-sync-log li {
+  margin: 4px 0;
+}
+
+.wiki-sync-error {
+  color: var(--text-error);
+}
+
+.wiki-sync-muted {
+  color: var(--text-muted);
+}
+
+.wiki-sync-hidden {
+  display: none;
+}
+
+.wiki-sync-site-select {
+  max-width: 280px;
+}

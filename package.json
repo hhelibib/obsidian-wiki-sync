@@ -1,0 +1,20 @@
+{
+  "name": "obsidian-wiki-sync",
+  "version": "0.1.1",
+  "description": "Push Obsidian notes to a Wiki.js 3 site.",
+  "private": true,
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck -p tsconfig.json && node esbuild.config.mjs production"
+  },
+  "dependencies": {
+    "marked": "^15.0.12"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "builtin-modules": "^4.0.0",
+    "esbuild": "^0.25.5",
+    "obsidian": "^1.8.7",
+    "typescript": "^5.8.3"
+  }
+}
