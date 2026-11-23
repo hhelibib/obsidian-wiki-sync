@@ -76,7 +76,10 @@ export default class WikiSyncPlugin extends Plugin {
     const site = await client.getSite(this.settings.siteId.trim() || "current");
     this.settings.siteId = site.id;
     await this.persist();
-    return `已连接 ${user} · 站点 ${site.title || site.hostname || site.id}`;
+    const primary = site.locales?.primary?.trim();
+    const active = site.locales?.active?.filter((code) => code.trim()).join("、");
+    const localeText = primary ? ` · 主语言 ${primary}${active && active !== primary ? `（已启用 ${active}）` : ""}` : "";
+    return `已连接 ${user} · 站点 ${site.title || site.hostname || site.id}${localeText}`;
   }
 
   private bindExistingRecordsToSite(): boolean {

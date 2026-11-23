@@ -1,7 +1,7 @@
 {
   "id": "obsidian-wiki-sync",
   "name": "Obsidian Wiki Sync",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "minAppVersion": "1.5.0",
   "description": "把带 wikiPath 的笔记推送到自建 Wiki.js 3。",
   "author": "local",

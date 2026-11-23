@@ -1,10 +1,17 @@
 import { requestUrl, type RequestUrlResponse } from "obsidian";
 
+export interface WikiSiteLocales {
+  primary?: string;
+  active?: string[];
+  forcePrefix?: boolean;
+}
+
 export interface WikiSite {
   id: string;
   title?: string;
   hostname?: string;
   isEnabled?: boolean;
+  locales?: WikiSiteLocales;
 }
 
 export interface WikiPage {
@@ -81,6 +88,12 @@ export class WikiJsClient {
     const data = await this.request<unknown>("GET", "/_api/sites");
     if (!Array.isArray(data)) throw new Error("站点列表格式无法识别");
     return data.filter(isWikiSite).sort((a, b) => siteLabel(a).localeCompare(siteLabel(b), "zh"));
+  }
+
+  async getPage(siteId: string, pageId: string): Promise<WikiPage> {
+    const data = await this.request<WikiPage>("GET", `/_api/sites/${siteId}/pages/${pageId}`);
+    if (!data?.id) throw new Error("页面响应里没有 id");
+    return data;
   }
 
   async createPage(siteId: string, page: PageWrite): Promise<WikiPage> {

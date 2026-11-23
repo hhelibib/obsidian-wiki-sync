@@ -1,0 +1,32 @@
+{
+  "settings": {
+    "baseUrl": "https://book.selflove.top",
+    "apiToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjkxZTAxZjk0LTg2NmItNDllMi1hZWU1LTg4ODRmMmI3NGE4YyIsInN1YiI6IjkxMjllMDM2LTM3OWMtNDc2ZS1hZWZmLTZjOTIzYjVjMjg3MSIsImF1ZCI6InVybjp3aWtpLmpzOnBhdCIsImlhdCI6MTc5NTQ0NzIzNiwiZXhwIjoxNzk2MDUyMDM2fQ.hW5B5I1KhQGL8Zs5JeS62-cGXB11vbPh6RytEhJUQbHDkQoTmIGY7-ndPEUsbWaXZzDoOycf3EoMFQg8dwnOPPGBo74-SAIlWMarq2Wn6z6l4kA9vBg-i45P2yH8LLQb3vYqlbNsObQYhoGVRQCeFZLJzRfZy6JcEi6yXOVEGi1YMOcBTJY2mnaCabWm5NQhml3sCdS92ILkBJR8-bwdI2BkpFKmZmTA0QVTgo9ZXsmmKcCUeLhB6XsIg0XXyL2DQVluccvMxZr-LUh_f-JaufxB5y5GCSM7aKj6wD4veNm-04Q-v1gYxUjmLJ1fV3odfzLt0zgBYVu90zacC5wWWw",
+    "siteId": "3aad06dc-0c4d-4547-ad65-bbcfa05bf135",
+    "locale": "zh",
+    "publishState": "published",
+    "assetFolder": "attachments",
+    "queueServerRender": true
+  },
+  "records": {
+    "欢迎.md": {
+      "localPath": "欢迎.md",
+      "siteId": "3aad06dc-0c4d-4547-ad65-bbcfa05bf135",
+      "pageId": "e44d35f9-48e8-4ca2-b189-cf07067a6b32",
+      "wikiPath": "test",
+      "contentHash": "ef0aab90e4fd824a74fa351cf127c6410f16a7ab6fc4694540d3867889b9987b",
+      "lastSyncTime": 1795448890526,
+      "status": "synced"
+    },
+    "home-test.md": {
+      "localPath": "home-test.md",
+      "siteId": "3aad06dc-0c4d-4547-ad65-bbcfa05bf135",
+      "pageId": "9bdece8b-eade-4ba2-ae48-7103f070f3a2",
+      "wikiPath": "home",
+      "contentHash": "da57fcd283e09579cbf1593b392ca32ee8ec425a9b2cc34b30fb1f82a820dfaa",
+      "lastSyncTime": 1795449960472,
+      "status": "synced"
+    }
+  },
+  "assets": {}
+}

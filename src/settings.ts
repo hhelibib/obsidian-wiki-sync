@@ -54,10 +54,10 @@ export function renderWikiSettings(container: HTMLElement, plugin: WikiSyncPlugi
 
   new Setting(container)
     .setName("默认语言")
-    .setDesc("笔记可用 wikiLocale 覆盖。")
+    .setDesc("留空则用站点主语言。笔记可用 wikiLocale 覆盖。Wiki.js 3 的简体中文一般是 zh-CN；只写 zh 且站点只启用了 zh-CN 时，会自动对齐，否则页面不会出现在网站上。")
     .addText((text) =>
-      text.setPlaceholder("zh").setValue(plugin.settings.locale).onChange(async (value) => {
-        plugin.settings.locale = value.trim() || "zh";
+      text.setPlaceholder("留空使用站点主语言").setValue(plugin.settings.locale).onChange(async (value) => {
+        plugin.settings.locale = value.trim();
         await plugin.persist();
       }),
     );
@@ -166,8 +166,8 @@ export class WikiSyncSettingTab extends PluginSettingTab {
       },
       {
         name: "默认语言",
-        desc: "笔记可用 wikiLocale 覆盖。",
-        control: { type: "text", key: "locale", placeholder: "zh" },
+        desc: "留空则用站点主语言。笔记可用 wikiLocale 覆盖。只写 zh 且站点只启用了 zh-CN 时会自动对齐。",
+        control: { type: "text", key: "locale", placeholder: "留空使用站点主语言" },
       },
       {
         name: "默认发布状态",
@@ -344,7 +344,7 @@ function assignSetting(settings: WikiSyncSettings, key: SettingKey, value: unkno
       settings.siteId = String(value ?? "").trim();
       break;
     case "locale":
-      settings.locale = String(value ?? "").trim() || "zh";
+      settings.locale = String(value ?? "").trim();
       break;
     case "publishState":
       settings.publishState = value === "draft" ? "draft" : "published";

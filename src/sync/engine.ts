@@ -1,6 +1,7 @@
 import { parseYaml, type App, type FrontMatterCache, type TFile } from "obsidian";
 import { marked } from "marked";
-import { WikiHttpError, WikiJsClient, type PageWrite } from "../api/wiki-client";
+import { WikiHttpError, WikiJsClient, type PageWrite, type WikiSite } from "../api/wiki-client";
+import { publicPagePath, resolveWikiLocale } from "../content/locale";
 import { isLocalHref, stripHeading, transformMarkdown, type LinkResolution } from "../content/markdown";
 import {
   asString,
@@ -36,7 +37,8 @@ export async function syncFiles(
 ): Promise<SyncReport> {
   const startedAt = Date.now();
   const client = new WikiJsClient(settings.baseUrl, settings.apiToken);
-  const siteId = await resolveSiteId(client, settings);
+  const site = await resolveSite(client, settings);
+  const siteId = site.id;
   const items: SyncItemResult[] = [];
   let ignored = 0;
 
@@ -47,7 +49,7 @@ export async function syncFiles(
       ignored += 1;
       continue;
     }
-    items.push(await syncOne(app, client, settings, store, siteId, file, frontmatter, wikiPath));
+    items.push(await syncOne(app, client, settings, store, site, file, frontmatter, wikiPath));
   }
 
   const report: SyncReport = {
@@ -63,11 +65,10 @@ export async function syncFiles(
   return report;
 }
 
-async function resolveSiteId(client: WikiJsClient, settings: WikiSyncSettings): Promise<string> {
-  if (settings.siteId.trim()) return settings.siteId.trim();
-  const site = await client.getSite("current");
-  settings.siteId = site.id;
-  return site.id;
+async function resolveSite(client: WikiJsClient, settings: WikiSyncSettings): Promise<WikiSite> {
+  const site = await client.getSite(settings.siteId.trim() || "current");
+  if (!settings.siteId.trim()) settings.siteId = site.id;
+  return site;
 }
 
 async function syncOne(
@@ -75,11 +76,12 @@ async function syncOne(
   client: WikiJsClient,
   settings: WikiSyncSettings,
   store: SyncStore,
-  siteId: string,
+  site: WikiSite,
   file: TFile,
   frontmatter: FrontMatterCache | undefined,
   wikiPath: string,
 ): Promise<SyncItemResult> {
+  const siteId = site.id;
   try {
     if (wikiPath.length > 255) {
       throw new Error("wikiPath 超过 255 个字符");
@@ -87,7 +89,9 @@ async function syncOne(
 
     const source = await app.vault.read(file);
     const body = stripFrontmatter(source, app, file);
-    const locale = asString(frontmatter?.wikiLocale) || settings.locale.trim() || "zh";
+    const requestedLocale = asString(frontmatter?.wikiLocale) || settings.locale.trim() || "";
+    const resolvedLocale = resolveWikiLocale(requestedLocale, site.locales);
+    const locale = resolvedLocale.locale;
     const title = truncate(asString(frontmatter?.wikiTitle) || asString(frontmatter?.title) || file.basename, 255);
     const description = truncate(asString(frontmatter?.wikiDescription) || asString(frontmatter?.description) || "", 255);
     const tags = readTags(frontmatter?.wikiTags ?? frontmatter?.tags);
@@ -119,6 +123,9 @@ async function syncOne(
     }
 
     const warnings: string[] = [];
+    if (resolvedLocale.remappedFrom) {
+      warnings.push(`语言 ${resolvedLocale.remappedFrom} 未在站点启用，已改写成 ${locale}。网站只显示已启用的语言`);
+    }
     if (tags?.rejected.length) {
       warnings.push(`已忽略不符合 Wiki.js 规则的标签：${tags.rejected.join("、")}`);
     }
@@ -143,7 +150,8 @@ async function syncOne(
     };
     if (tags) page.tags = tags.tags;
 
-    const saved = await savePage(client, siteId, existing?.pageId, page, wikiPath, locale);
+    const pageId = await reusablePageId(client, siteId, existing, locale, warnings);
+    const saved = await savePage(client, siteId, pageId, page, wikiPath, locale);
     if (settings.queueServerRender) {
       try {
         await client.queueRender(siteId, saved.page.id);
@@ -169,7 +177,7 @@ async function syncOne(
       localPath: file.path,
       wikiPath: saved.page.path || wikiPath,
       action: saved.created ? "created" : "updated",
-      message: warnings.length ? warnings.join("；") : undefined,
+      message: [`网站地址 ${publicPagePath(saved.page.path || wikiPath, locale, site.locales)}`, ...warnings].join("；"),
     };
   } catch (error) {
     const message = errorMessage(error);
@@ -186,6 +194,28 @@ async function syncOne(
     };
     await store.persist();
     return { localPath: file.path, wikiPath, action: "error", message };
+  }
+}
+
+async function reusablePageId(
+  client: WikiJsClient,
+  siteId: string,
+  existing: PageRecord | undefined,
+  locale: string,
+  warnings: string[],
+): Promise<string | undefined> {
+  const pageId = existing?.siteId === siteId ? existing.pageId : undefined;
+  if (!pageId) return undefined;
+  try {
+    const remote = await client.getPage(siteId, pageId);
+    if (remote.locale && remote.locale !== locale) {
+      warnings.push(`上次同步到了语言 ${remote.locale}，网站不展示这个语言。这次改写到 ${locale}`);
+      return undefined;
+    }
+    return remote.id;
+  } catch (error) {
+    if (error instanceof WikiHttpError && error.status === 404) return undefined;
+    throw error;
   }
 }
 

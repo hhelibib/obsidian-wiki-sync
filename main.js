@@ -55,6 +55,11 @@ var WikiJsClient = class {
     if (!Array.isArray(data)) throw new Error("\u7AD9\u70B9\u5217\u8868\u683C\u5F0F\u65E0\u6CD5\u8BC6\u522B");
     return data.filter(isWikiSite).sort((a, b) => siteLabel(a).localeCompare(siteLabel(b), "zh"));
   }
+  async getPage(siteId, pageId) {
+    const data = await this.request("GET", `/_api/sites/${siteId}/pages/${pageId}`);
+    if (!data?.id) throw new Error("\u9875\u9762\u54CD\u5E94\u91CC\u6CA1\u6709 id");
+    return data;
+  }
   async createPage(siteId, page) {
     const data = await this.request("POST", `/_api/sites/${siteId}/pages`, JSON.stringify(page), {
       "Content-Type": "application/json"
@@ -229,9 +234,9 @@ function renderWikiSettings(container, plugin) {
     });
   });
   addSiteSetting(new import_obsidian2.Setting(container), plugin);
-  new import_obsidian2.Setting(container).setName("\u9ED8\u8BA4\u8BED\u8A00").setDesc("\u7B14\u8BB0\u53EF\u7528 wikiLocale \u8986\u76D6\u3002").addText(
-    (text) => text.setPlaceholder("zh").setValue(plugin.settings.locale).onChange(async (value) => {
-      plugin.settings.locale = value.trim() || "zh";
+  new import_obsidian2.Setting(container).setName("\u9ED8\u8BA4\u8BED\u8A00").setDesc("\u7559\u7A7A\u5219\u7528\u7AD9\u70B9\u4E3B\u8BED\u8A00\u3002\u7B14\u8BB0\u53EF\u7528 wikiLocale \u8986\u76D6\u3002Wiki.js 3 \u7684\u7B80\u4F53\u4E2D\u6587\u4E00\u822C\u662F zh-CN\uFF1B\u53EA\u5199 zh \u4E14\u7AD9\u70B9\u53EA\u542F\u7528\u4E86 zh-CN \u65F6\uFF0C\u4F1A\u81EA\u52A8\u5BF9\u9F50\uFF0C\u5426\u5219\u9875\u9762\u4E0D\u4F1A\u51FA\u73B0\u5728\u7F51\u7AD9\u4E0A\u3002").addText(
+    (text) => text.setPlaceholder("\u7559\u7A7A\u4F7F\u7528\u7AD9\u70B9\u4E3B\u8BED\u8A00").setValue(plugin.settings.locale).onChange(async (value) => {
+      plugin.settings.locale = value.trim();
       await plugin.persist();
     })
   );
@@ -313,8 +318,8 @@ var WikiSyncSettingTab = class extends import_obsidian2.PluginSettingTab {
       },
       {
         name: "\u9ED8\u8BA4\u8BED\u8A00",
-        desc: "\u7B14\u8BB0\u53EF\u7528 wikiLocale \u8986\u76D6\u3002",
-        control: { type: "text", key: "locale", placeholder: "zh" }
+        desc: "\u7559\u7A7A\u5219\u7528\u7AD9\u70B9\u4E3B\u8BED\u8A00\u3002\u7B14\u8BB0\u53EF\u7528 wikiLocale \u8986\u76D6\u3002\u53EA\u5199 zh \u4E14\u7AD9\u70B9\u53EA\u542F\u7528\u4E86 zh-CN \u65F6\u4F1A\u81EA\u52A8\u5BF9\u9F50\u3002",
+        control: { type: "text", key: "locale", placeholder: "\u7559\u7A7A\u4F7F\u7528\u7AD9\u70B9\u4E3B\u8BED\u8A00" }
       },
       {
         name: "\u9ED8\u8BA4\u53D1\u5E03\u72B6\u6001",
@@ -476,7 +481,7 @@ function assignSetting(settings, key, value) {
       settings.siteId = String(value ?? "").trim();
       break;
     case "locale":
-      settings.locale = String(value ?? "").trim() || "zh";
+      settings.locale = String(value ?? "").trim();
       break;
     case "publishState":
       settings.publishState = value === "draft" ? "draft" : "published";
@@ -2629,6 +2634,60 @@ var parseInline = marked.parseInline;
 var parser = _Parser.parse;
 var lexer = _Lexer.lex;
 
+// src/content/locale.ts
+function resolveWikiLocale(requested, locales) {
+  const active = unique(locales?.active ?? []);
+  const primary = locales?.primary?.trim() ?? "";
+  const wanted = requested.trim();
+  if (active.length === 0) {
+    return { locale: wanted || primary || "zh" };
+  }
+  if (!wanted) {
+    return { locale: matchCode(primary, active) ?? (primary || active[0]) };
+  }
+  const exact = matchCode(wanted, active);
+  if (exact) {
+    return exact === wanted ? { locale: exact } : { locale: exact, remappedFrom: wanted };
+  }
+  const language = wanted.split("-")[0].toLowerCase();
+  const matches = active.filter((code) => code.split("-")[0].toLowerCase() === language);
+  if (matches.length === 1) {
+    return { locale: matches[0], remappedFrom: wanted };
+  }
+  if (matches.length > 1) {
+    throw new Error(
+      `\u8BED\u8A00 ${wanted} \u5BF9\u5E94\u591A\u4E2A\u5DF2\u542F\u7528\u8BED\u8A00\uFF08${matches.join("\u3001")}\uFF09\u3002\u8BF7\u628A wikiLocale \u5199\u6210\u5176\u4E2D\u4E4B\u4E00\uFF0C\u5426\u5219\u9875\u9762\u4E0D\u4F1A\u51FA\u73B0\u5728\u7F51\u7AD9\u4E0A\u3002`
+    );
+  }
+  throw new Error(
+    `\u7AD9\u70B9\u542F\u7528\u7684\u8BED\u8A00\u662F ${active.join("\u3001")}\uFF0C\u5F53\u524D\u5199\u7684\u662F ${wanted}\u3002Wiki.js \u53EA\u5C55\u793A\u5DF2\u542F\u7528\u8BED\u8A00\u7684\u9875\u9762\uFF0C\u6240\u4EE5\u8FD9\u6B21\u6CA1\u6709\u540C\u6B65\u3002\u8BF7\u628A\u63D2\u4EF6\u9ED8\u8BA4\u8BED\u8A00\u6216\u7B14\u8BB0\u7684 wikiLocale \u6539\u6210 ${primary || active[0]}\u3002`
+  );
+}
+function publicPagePath(wikiPath, locale, locales) {
+  const primary = locales?.primary?.trim() ?? "";
+  const prefixed = Boolean(locales?.forcePrefix) || primary !== "" && locale !== primary;
+  if (wikiPath === "home" || wikiPath === "") {
+    return prefixed ? `/${locale}` : "/";
+  }
+  return prefixed ? `/${locale}/${wikiPath}` : `/${wikiPath}`;
+}
+function matchCode(wanted, active) {
+  if (!wanted) return void 0;
+  return active.find((code) => code.toLowerCase() === wanted.toLowerCase());
+}
+function unique(values) {
+  const seen = /* @__PURE__ */ new Set();
+  const result = [];
+  for (const value of values) {
+    const trimmed = value.trim();
+    const key = trimmed.toLowerCase();
+    if (!trimmed || seen.has(key)) continue;
+    seen.add(key);
+    result.push(trimmed);
+  }
+  return result;
+}
+
 // src/content/markdown.ts
 var FENCE = /```[\s\S]*?```|~~~[\s\S]*?~~~/g;
 async function transformMarkdown(source, resolveWiki, resolveLocal) {
@@ -2888,7 +2947,8 @@ marked.use({ gfm: true, breaks: false });
 async function syncFiles(app, settings, store, files) {
   const startedAt = Date.now();
   const client = new WikiJsClient(settings.baseUrl, settings.apiToken);
-  const siteId = await resolveSiteId(client, settings);
+  const site = await resolveSite(client, settings);
+  const siteId = site.id;
   const items = [];
   let ignored = 0;
   for (const file of files) {
@@ -2898,7 +2958,7 @@ async function syncFiles(app, settings, store, files) {
       ignored += 1;
       continue;
     }
-    items.push(await syncOne(app, client, settings, store, siteId, file, frontmatter, wikiPath));
+    items.push(await syncOne(app, client, settings, store, site, file, frontmatter, wikiPath));
   }
   const report = {
     startedAt,
@@ -2912,20 +2972,22 @@ async function syncFiles(app, settings, store, files) {
   };
   return report;
 }
-async function resolveSiteId(client, settings) {
-  if (settings.siteId.trim()) return settings.siteId.trim();
-  const site = await client.getSite("current");
-  settings.siteId = site.id;
-  return site.id;
+async function resolveSite(client, settings) {
+  const site = await client.getSite(settings.siteId.trim() || "current");
+  if (!settings.siteId.trim()) settings.siteId = site.id;
+  return site;
 }
-async function syncOne(app, client, settings, store, siteId, file, frontmatter, wikiPath) {
+async function syncOne(app, client, settings, store, site, file, frontmatter, wikiPath) {
+  const siteId = site.id;
   try {
     if (wikiPath.length > 255) {
       throw new Error("wikiPath \u8D85\u8FC7 255 \u4E2A\u5B57\u7B26");
     }
     const source = await app.vault.read(file);
     const body = stripFrontmatter(source, app, file);
-    const locale = asString(frontmatter?.wikiLocale) || settings.locale.trim() || "zh";
+    const requestedLocale = asString(frontmatter?.wikiLocale) || settings.locale.trim() || "";
+    const resolvedLocale = resolveWikiLocale(requestedLocale, site.locales);
+    const locale = resolvedLocale.locale;
     const title = truncate(asString(frontmatter?.wikiTitle) || asString(frontmatter?.title) || file.basename, 255);
     const description = truncate(asString(frontmatter?.wikiDescription) || asString(frontmatter?.description) || "", 255);
     const tags = readTags(frontmatter?.wikiTags ?? frontmatter?.tags);
@@ -2949,6 +3011,9 @@ async function syncOne(app, client, settings, store, siteId, file, frontmatter, 
       return { localPath: file.path, wikiPath, action: "skipped", message: "\u5185\u5BB9\u6CA1\u6709\u53D8\u5316" };
     }
     const warnings = [];
+    if (resolvedLocale.remappedFrom) {
+      warnings.push(`\u8BED\u8A00 ${resolvedLocale.remappedFrom} \u672A\u5728\u7AD9\u70B9\u542F\u7528\uFF0C\u5DF2\u6539\u5199\u6210 ${locale}\u3002\u7F51\u7AD9\u53EA\u663E\u793A\u5DF2\u542F\u7528\u7684\u8BED\u8A00`);
+    }
     if (tags?.rejected.length) {
       warnings.push(`\u5DF2\u5FFD\u7565\u4E0D\u7B26\u5408 Wiki.js \u89C4\u5219\u7684\u6807\u7B7E\uFF1A${tags.rejected.join("\u3001")}`);
     }
@@ -2970,7 +3035,8 @@ async function syncOne(app, client, settings, store, siteId, file, frontmatter, 
       publishState
     };
     if (tags) page.tags = tags.tags;
-    const saved = await savePage(client, siteId, existing?.pageId, page, wikiPath, locale);
+    const pageId = await reusablePageId(client, siteId, existing, locale, warnings);
+    const saved = await savePage(client, siteId, pageId, page, wikiPath, locale);
     if (settings.queueServerRender) {
       try {
         await client.queueRender(siteId, saved.page.id);
@@ -2994,7 +3060,7 @@ async function syncOne(app, client, settings, store, siteId, file, frontmatter, 
       localPath: file.path,
       wikiPath: saved.page.path || wikiPath,
       action: saved.created ? "created" : "updated",
-      message: warnings.length ? warnings.join("\uFF1B") : void 0
+      message: [`\u7F51\u7AD9\u5730\u5740 ${publicPagePath(saved.page.path || wikiPath, locale, site.locales)}`, ...warnings].join("\uFF1B")
     };
   } catch (error) {
     const message = errorMessage(error);
@@ -3011,6 +3077,21 @@ async function syncOne(app, client, settings, store, siteId, file, frontmatter, 
     };
     await store.persist();
     return { localPath: file.path, wikiPath, action: "error", message };
+  }
+}
+async function reusablePageId(client, siteId, existing, locale, warnings) {
+  const pageId = existing?.siteId === siteId ? existing.pageId : void 0;
+  if (!pageId) return void 0;
+  try {
+    const remote = await client.getPage(siteId, pageId);
+    if (remote.locale && remote.locale !== locale) {
+      warnings.push(`\u4E0A\u6B21\u540C\u6B65\u5230\u4E86\u8BED\u8A00 ${remote.locale}\uFF0C\u7F51\u7AD9\u4E0D\u5C55\u793A\u8FD9\u4E2A\u8BED\u8A00\u3002\u8FD9\u6B21\u6539\u5199\u5230 ${locale}`);
+      return void 0;
+    }
+    return remote.id;
+  } catch (error) {
+    if (error instanceof WikiHttpError && error.status === 404) return void 0;
+    throw error;
   }
 }
 async function savePage(client, siteId, pageId, page, wikiPath, locale) {
@@ -3141,7 +3222,7 @@ var DEFAULT_SETTINGS = {
   baseUrl: "https://book.selflove.top",
   apiToken: "",
   siteId: "",
-  locale: "zh",
+  locale: "",
   publishState: "published",
   assetFolder: "attachments",
   queueServerRender: true
@@ -3289,7 +3370,10 @@ var WikiSyncPlugin = class extends import_obsidian5.Plugin {
     const site = await client.getSite(this.settings.siteId.trim() || "current");
     this.settings.siteId = site.id;
     await this.persist();
-    return `\u5DF2\u8FDE\u63A5 ${user} \xB7 \u7AD9\u70B9 ${site.title || site.hostname || site.id}`;
+    const primary = site.locales?.primary?.trim();
+    const active = site.locales?.active?.filter((code) => code.trim()).join("\u3001");
+    const localeText = primary ? ` \xB7 \u4E3B\u8BED\u8A00 ${primary}${active && active !== primary ? `\uFF08\u5DF2\u542F\u7528 ${active}\uFF09` : ""}` : "";
+    return `\u5DF2\u8FDE\u63A5 ${user} \xB7 \u7AD9\u70B9 ${site.title || site.hostname || site.id}${localeText}`;
   }
   bindExistingRecordsToSite() {
     const siteId = this.settings.siteId.trim();

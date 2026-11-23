@@ -30,7 +30,7 @@ npm run build
 | Wiki.js 地址 | 站点根地址，例如 `https://book.selflove.top`，不要带 `/_api` |
 | 个人访问令牌 | 在 Wiki.js 个人资料的 Access Tokens 里新建，不要用管理后台的 API Key。只保存在本机插件数据里 |
 | 当前站点 | 从实例拉取站点列表后选择同步目标。点「刷新」重新拉取 |
-| 默认语言 | 默认 `zh`。笔记可用 `wikiLocale` 覆盖 |
+| 默认语言 | 留空则用站点主语言。笔记可用 `wikiLocale` 覆盖。Wiki.js 3 的简体中文一般是 `zh-CN`；只写 `zh` 且站点只启用了 `zh-CN` 时会自动对齐。对不上已启用语言时，同步会失败，而不会再报成功 |
 | 默认发布状态 | `published` 或 `draft` |
 | 附件目录 | 图片和附件上传到这个目录，并保留 Vault 里的相对文件夹。默认 `attachments` |
 | 排队服务器渲染 | 保存后请求 Wiki.js 用官方 Markdown 管道重渲染 |
@@ -66,7 +66,7 @@ wikiTags:
 | `wikiPath` | Wiki 页面路径。必填，否则这篇笔记会被跳过 |
 | `wikiTitle` | 页面标题。未写时用 `title`，再退回文件名 |
 | `wikiDescription` | 摘要。未写时用 `description` |
-| `wikiLocale` | 语言。未写时用插件里的默认语言 |
+| `wikiLocale` | 语言，必须是站点已启用的语言代码，例如 `zh-CN`。未写时用插件默认语言；插件也留空时用站点主语言 |
 | `wikiPublishState` | `draft`、`published` 或 `scheduled` |
 | `wikiPublished` | `true` / `false`，在没写 `wikiPublishState` 时分别表示发布和草稿 |
 | `wikiTags` | 标签。未写时用 `tags`。含字母、数字、空格、`.`、`_`、`-` 以外字符的标签会被忽略，并在同步结果里提示 |

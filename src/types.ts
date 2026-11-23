@@ -12,7 +12,7 @@ export const DEFAULT_SETTINGS: WikiSyncSettings = {
   baseUrl: "https://book.selflove.top",
   apiToken: "",
   siteId: "",
-  locale: "zh",
+  locale: "",
   publishState: "published",
   assetFolder: "attachments",
   queueServerRender: true,
